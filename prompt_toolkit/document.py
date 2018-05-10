@@ -10,8 +10,9 @@ import string
 import weakref
 from six.moves import range, map
 
-from .selection import SelectionType, SelectionState, PasteMode
 from .clipboard import ClipboardData
+from .filters import vi_mode
+from .selection import SelectionType, SelectionState, PasteMode
 
 __all__ = [
     'Document',
@@ -799,6 +800,9 @@ class Document(object):
                 from_column, to_column = sorted([from_column, to_column])
                 lines = self.lines
 
+                if vi_mode():
+                    to_column += 1
+
                 for l in range(from_line, to_line + 1):
                     line_length = len(lines[l])
                     if from_column < line_length:
@@ -813,6 +817,11 @@ class Document(object):
                         to = self.text.find('\n', to)
                     else:
                         to = len(self.text) - 1
+
+                # In Vi mode, the upper boundary is always included. For Emacs,
+                # that's not the case.
+                if vi_mode():
+                    to += 1
 
                 yield from_, to
 
@@ -845,6 +854,11 @@ class Document(object):
                 _, from_column = self.translate_index_to_position(intersection_start)
                 _, to_column = self.translate_index_to_position(intersection_end)
 
+                # In Vi mode, the upper boundary is always included. For Emacs
+                # mode, that's not the case.
+                if vi_mode():
+                    to_column += 1
+
                 return from_column, to_column
 
     def cut_selection(self):
@@ -864,8 +878,8 @@ class Document(object):
                     new_cursor_position = from_
 
                 remaining_parts.append(self.text[last_to:from_])
-                cut_parts.append(self.text[from_:to + 1])
-                last_to = to + 1
+                cut_parts.append(self.text[from_:to])
+                last_to = to
 
             remaining_parts.append(self.text[last_to:])
 
